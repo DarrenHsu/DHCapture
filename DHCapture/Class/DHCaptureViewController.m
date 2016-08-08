@@ -1,50 +1,61 @@
 //
-//  ViewController.m
+//  DHCaptureViewController.m
 //  DHCapture
 //
-//  Created by Dareen Hsu on 7/25/16.
+//  Created by Dareen Hsu on 8/2/16.
 //  Copyright © 2016 SKL. All rights reserved.
 //
 
-#import "ViewController.h"
+#import "DHCaptureViewController.h"
 #import "DHCaptureManager.h"
 
-@interface ViewController ()
+@interface DHCaptureViewController ()
 
 @property (nonatomic, strong) DHCaptureManager *manager;
 @property (nonatomic, weak) IBOutlet DHPreviewView *preview;
-@property (nonatomic, weak) IBOutlet UIImageView *captureView;
+@property (nonatomic, weak) IBOutlet UIButton *startButton;
 
 @end
 
-@implementation ViewController
+@implementation DHCaptureViewController
 
-- (void)viewDidLoad {
+- (IBAction) startPressed:(id)sender {
+    if (!_manager.isSessionRunning) {
+        [_manager startSuccess:NULL captureImage:^(UIImage *image) {
+            [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+
+        } cameraNotAuthorized:^{
+
+        } failed:^{
+            
+        }];
+    }else {
+        [_manager stopCompletely:^{
+            [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+        }];
+    }
+}
+
+- (void) viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view, typically from a nib.
+
     _manager = [DHCaptureManager shardInstance];
     [_manager initializeWithView:_preview];
+    
 }
 
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-
-    [_manager startSuccess:NULL captureImage:^(UIImage *image) {
-        _captureView.image = image;
-    } cameraNotAuthorized:^{
-
-    } failed:^{
-
-    }];
-}
-
-- (void)viewDidDisappear:(BOOL)animated {
-    [super viewDidDisappear:animated];
-}
-
-- (void)didReceiveMemoryWarning {
+- (void) didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
+}
+
+- (void) viewDidDisappear:(BOOL)animated {
+    [_manager stopCompletely:^{
+        [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+    }];
+
+    [super viewDidDisappear:animated];
 }
 
 - (BOOL)shouldAutorotate {
@@ -64,6 +75,5 @@
         previewLayer.connection.videoOrientation = (AVCaptureVideoOrientation)deviceOrientation;
     }
 }
-
 
 @end

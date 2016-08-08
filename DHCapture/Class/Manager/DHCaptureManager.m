@@ -17,7 +17,10 @@ typedef NS_ENUM(NSInteger, AVCamSetupResult) {
 
 static DHCaptureManager *_manager = nil;
 
-@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate,AVCaptureAudioDataOutputSampleBufferDelegate>
+@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate,AVCaptureAudioDataOutputSampleBufferDelegate> {
+    CGSize _imageSize;
+    BOOL _isCreateNow;
+}
 
 @property (nonatomic) dispatch_queue_t sessionQueue;
 @property (nonatomic) AVCaptureSession *session;
@@ -28,7 +31,13 @@ static DHCaptureManager *_manager = nil;
 
 @property (nonatomic) UIBackgroundTaskIdentifier backgroundRecordingID;
 
+@property (nonatomic, strong) NSMutableArray *imageFrameArray;
+
+@property (nonatomic, strong) NSTimer *saveTimer;
+
 @property (copy) void(^CaptureProcess)(UIImage *);
+
+@property (nonnull, strong) NSOperationQueue *queue;
 
 @end
 
@@ -38,6 +47,8 @@ static DHCaptureManager *_manager = nil;
     @synchronized (_manager) {
         if (!_manager) {
             _manager = [DHCaptureManager new];
+            _manager.imageFrameArray = [NSMutableArray new];
+            _manager.queue = [NSOperationQueue new];
         }
     }
     return _manager;
@@ -115,7 +126,7 @@ static DHCaptureManager *_manager = nil;
 
         AVCaptureVideoDataOutput *videoDataOutput = [[AVCaptureVideoDataOutput alloc] init];
         if ([_session canAddOutput:videoDataOutput]) {
-            dispatch_queue_t queue = dispatch_queue_create("video capture queue", NULL);
+            dispatch_queue_t queue = dispatch_queue_create("VideoCaptureQueue", NULL);
 
             [videoDataOutput setSampleBufferDelegate:self queue:queue];
             videoDataOutput.videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey: [NSNumber numberWithInt:kCVPixelFormatType_32BGRA]};
@@ -136,7 +147,7 @@ static DHCaptureManager *_manager = nil;
 //            NSLog( @"Could not add audio data output to the session" );
 //            self.setupResult = AVCamSetupResultSessionConfigurationFailed;
 //        }
-
+//
 //        AVCaptureMovieFileOutput *movieFileOutput = [[AVCaptureMovieFileOutput alloc] init];
 //        if ( [self.session canAddOutput:movieFileOutput] ) {
 //            [self.session addOutput:movieFileOutput];
@@ -187,6 +198,7 @@ static DHCaptureManager *_manager = nil;
 //                [self addObservers];
                 [_session startRunning];
                 _sessionRunning = _session.isRunning;
+                NSLog(@"capture start");
                 break;
             } case AVCamSetupResultCameraNotAuthorized: {
                 dispatch_async( dispatch_get_main_queue(), ^{
@@ -201,6 +213,9 @@ static DHCaptureManager *_manager = nil;
             }
         }
     });
+
+    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(createMovie) userInfo:nil repeats:YES];
+
 }
 
 - (void) startSuccess:(void(^)(void)) success
@@ -213,12 +228,25 @@ static DHCaptureManager *_manager = nil;
     [self startSuccess:success cameraNotAuthorized:cameraNotAuthorized failed:failed];
 }
 
-- (void) stop {
+- (void) stopCompletely:(void(^)(void)) complete {
+    [_saveTimer invalidate];
+
     dispatch_async(_sessionQueue, ^{
+        if (!_sessionRunning) return;
+
         if (_setupResult == AVCamSetupResultSuccess ) {
             [_session stopRunning];
-//            [self removeObservers];
             _sessionRunning = [_session isRunning];
+
+            [_imageFrameArray removeAllObjects];
+
+//            [self removeObservers];
+
+            dispatch_async( dispatch_get_main_queue(), ^{
+                if (complete) complete();
+            });
+
+            NSLog(@"capture stop");
         }
     });
 }
@@ -247,14 +275,175 @@ static DHCaptureManager *_manager = nil;
     return (image);
 }
 
+- (NSString *) getBasePath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/movie"];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![manager fileExistsAtPath:tempDirectory]) {
+        NSError *error;
+        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
+    }
+
+    return tempDirectory;
+}
+
+- (NSArray *) getMovieFiles {
+    NSString *basePath = [self getBasePath];
+    NSError *error;
+    NSArray *directoryContent = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:basePath error:&error];
+    NSMutableArray *matches = [NSMutableArray new];
+
+    for (NSString *item in directoryContent) {
+        if ([[item pathExtension] isEqualToString:@"mp4"]) {
+            [matches addObject:item];
+        }
+    }
+
+    return matches;
+}
+
+#pragma mark - Write Image into movie
+- (void) write:(NSString *) key imageAsMovie:(NSArray *) array toPath:(NSString*) path size:(CGSize) size duration:(CGFloat) duration complete:(void (^)(void))handler {
+    NSError *error = nil;
+    AVAssetWriter *videoWriter = [[AVAssetWriter alloc] initWithURL:[NSURL fileURLWithPath:path]
+                                                           fileType:AVFileTypeMPEG4
+                                                              error:&error];
+
+    NSParameterAssert(videoWriter);
+
+    NSDictionary *videoSettings = @{AVVideoCodecKey: AVVideoCodecH264,
+                                    AVVideoWidthKey: [NSNumber numberWithInt:size.width],
+                                    AVVideoHeightKey: [NSNumber numberWithInt:size.height]};
+
+    AVAssetWriterInput *writerInput = [AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo outputSettings:videoSettings];
+    AVAssetWriterInputPixelBufferAdaptor *adaptor = [AVAssetWriterInputPixelBufferAdaptor assetWriterInputPixelBufferAdaptorWithAssetWriterInput:writerInput sourcePixelBufferAttributes:nil];
+
+    NSParameterAssert(writerInput);
+    NSParameterAssert([videoWriter canAddInput:writerInput]);
+
+    [videoWriter addInput:writerInput];
+    [videoWriter startWriting];
+    [videoWriter startSessionAtSourceTime:kCMTimeZero];
+
+    CVPixelBufferRef buffer = [self pixelBufferFromCGImage:[[array objectAtIndex:0] CGImage] size:CGSizeMake(480, 320)];
+    CVPixelBufferPoolCreatePixelBuffer(NULL, adaptor.pixelBufferPool, &buffer);
+
+    [adaptor appendPixelBuffer:buffer withPresentationTime:kCMTimeZero];
+    int i = 0;
+    while (writerInput.readyForMoreMediaData) {
+        CMTime frameTime = CMTimeMake(150, 600);
+        CMTime lastTime = CMTimeMake(150 * i, 600);
+        CMTime presentTime = CMTimeAdd(lastTime, frameTime);
+
+//        if (i == 0) presentTime = CMTimeMake(0, 600);
+
+        if (i >= [array count]) {
+            buffer = NULL;
+        } else {
+            buffer = [self pixelBufferFromCGImage:[[array objectAtIndex:i] CGImage] size:size];
+        }
+
+        NSLog(@"%@ %f %zd", key, (CGFloat)presentTime.value / (CGFloat)presentTime.timescale,i);
+
+        if (buffer) {
+            [adaptor appendPixelBuffer:buffer withPresentationTime:presentTime];
+            i++;
+        } else {
+            [writerInput markAsFinished];
+            [videoWriter finishWritingWithCompletionHandler:^{
+                if (!videoWriter.error) {
+                    NSLog(@"Video writing succeeded.");
+
+                    if (handler)
+                        handler();
+
+                } else {
+                    NSLog(@"Video writing failed: %@", videoWriter.error);
+                }
+            }];
+
+            CVPixelBufferPoolRelease(adaptor.pixelBufferPool);
+            break;
+        }
+    }
+}
+
+- (CVPixelBufferRef) pixelBufferFromCGImage: (CGImageRef) image  size:(CGSize)imageSize {
+    NSDictionary *options = [NSDictionary dictionaryWithObjectsAndKeys:
+                             [NSNumber numberWithBool:YES], kCVPixelBufferCGImageCompatibilityKey,
+                             [NSNumber numberWithBool:YES], kCVPixelBufferCGBitmapContextCompatibilityKey,nil];
+
+    CVPixelBufferRef pxbuffer = NULL;
+    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, imageSize.width,
+                                          imageSize.height, kCVPixelFormatType_32ARGB, (__bridge CFDictionaryRef)options,
+                                          &pxbuffer);
+
+    NSParameterAssert(status == kCVReturnSuccess && pxbuffer != NULL);
+
+    CVPixelBufferLockBaseAddress(pxbuffer, 0);
+    void *pxdata = CVPixelBufferGetBaseAddress(pxbuffer);
+    NSParameterAssert(pxdata != NULL);
+
+    CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(pxdata, imageSize.width,
+                                                 imageSize.height, 8, 4 * imageSize.width, rgbColorSpace,
+                                                 kCGImageAlphaNoneSkipFirst);
+
+    NSParameterAssert(context);
+
+    CGContextDrawImage(context, CGRectMake(0, 0, CGImageGetWidth(image), CGImageGetHeight(image)), image);
+    CGColorSpaceRelease(rgbColorSpace);
+    CGContextRelease(context);
+    CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
+    
+    return pxbuffer;
+}
+
+- (void) createMovie {
+    NSMutableArray *tmpArray = [NSMutableArray new];
+    for (UIImage *image in _imageFrameArray)
+        [tmpArray addObject:image];
+
+    [_queue addOperationWithBlock:^{
+        NSString *key = [NSString stringWithFormat:@"%zd",arc4random_uniform(74)];
+        NSLog(@"%@ create start",key);
+
+        if (tmpArray.count == 0) return;
+
+        NSLog(@"%@ createMovie %zd",key,tmpArray.count);
+
+        NSString *path = [[self getBasePath] stringByAppendingFormat:@"/%@.mp4",[NSDate new]];
+
+        [self write:key imageAsMovie:tmpArray toPath:path size:_imageSize duration:1 complete:^{
+            NSLog(@"%@ image count %zd",key,tmpArray.count);
+            NSLog(@"%@ write file %@",key,path);
+
+            [tmpArray removeAllObjects];
+
+            _isCreateNow = NO;
+        }];
+    }];
+}
+
 #pragma mark - AVCaptureDataOutputSampleBufferDelegate Methods
 - (void) captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-    NSLog(@"%@",NSStringFromSelector(_cmd));
-
     if (captureOutput == _videoDataOutput) {
-         UIImage *image = [self imageFromSampleBuffer:sampleBuffer];
+
+        if (_isCreateNow) return;
+
+        UIImage *image = [self imageFromSampleBuffer:sampleBuffer];
+        _imageSize = image.size;
+
+        [_imageFrameArray addObject:image];
 
         dispatch_async( dispatch_get_main_queue(), ^{
+            if (_imageFrameArray.count >= 10) {
+                _isCreateNow = YES;
+
+                [self createMovie];
+                [self stopCompletely:NULL];
+            }
+
             if (_CaptureProcess)
                 _CaptureProcess(image);
         });
@@ -265,7 +454,7 @@ static DHCaptureManager *_manager = nil;
 }
 
 - (void) captureOutput:(AVCaptureOutput *)captureOutput didDropSampleBuffer:(CMSampleBufferRef) sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-    NSLog(@"%@",NSStringFromSelector(_cmd));
+//    NSLog(@"%@",NSStringFromSelector(_cmd));
 }
 
 @end

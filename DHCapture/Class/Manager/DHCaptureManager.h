@@ -27,6 +27,9 @@
   cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized
                failed:(void(^)(void)) failed;
 
-- (void) stop;
+- (void) stopCompletely:(void(^)(void)) complete;
+
+- (NSString *) getBasePath;
+- (NSArray *) getMovieFiles;
 
 @end

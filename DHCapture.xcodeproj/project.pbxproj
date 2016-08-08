@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8CA5D8A71D50898F003A4035 /* DHCaptureViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CA5D8A61D50898F003A4035 /* DHCaptureViewController.m */; };
+		8CA5D8AA1D5089A7003A4035 /* DHListViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CA5D8A91D5089A7003A4035 /* DHListViewController.m */; };
 		8CF5861A1D45BFAE006A4A06 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF586191D45BFAE006A4A06 /* main.m */; };
 		8CF5861D1D45BFAE006A4A06 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF5861C1D45BFAE006A4A06 /* AppDelegate.m */; };
 		8CF586201D45BFAE006A4A06 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF5861F1D45BFAE006A4A06 /* ViewController.m */; };
@@ -18,6 +20,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8CA5D8A51D50898F003A4035 /* DHCaptureViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DHCaptureViewController.h; sourceTree = "<group>"; };
+		8CA5D8A61D50898F003A4035 /* DHCaptureViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DHCaptureViewController.m; sourceTree = "<group>"; };
+		8CA5D8A81D5089A7003A4035 /* DHListViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DHListViewController.h; sourceTree = "<group>"; };
+		8CA5D8A91D5089A7003A4035 /* DHListViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DHListViewController.m; sourceTree = "<group>"; };
 		8CF586151D45BFAE006A4A06 /* DHCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DHCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8CF586191D45BFAE006A4A06 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		8CF5861B1D45BFAE006A4A06 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -90,6 +96,10 @@
 			isa = PBXGroup;
 			children = (
 				8CF586391D45EC20006A4A06 /* Manager */,
+				8CA5D8A51D50898F003A4035 /* DHCaptureViewController.h */,
+				8CA5D8A61D50898F003A4035 /* DHCaptureViewController.m */,
+				8CA5D8A81D5089A7003A4035 /* DHListViewController.h */,
+				8CA5D8A91D5089A7003A4035 /* DHListViewController.m */,
 			);
 			path = Class;
 			sourceTree = "<group>";
@@ -176,7 +186,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				8CF5863C1D45EC41006A4A06 /* DHCaptureManager.m in Sources */,
+				8CA5D8A71D50898F003A4035 /* DHCaptureViewController.m in Sources */,
 				8CF586201D45BFAE006A4A06 /* ViewController.m in Sources */,
+				8CA5D8AA1D5089A7003A4035 /* DHListViewController.m in Sources */,
 				8CF5861D1D45BFAE006A4A06 /* AppDelegate.m in Sources */,
 				8CF5861A1D45BFAE006A4A06 /* main.m in Sources */,
 				8CF5863F1D45FD06006A4A06 /* DHPreviewView.m in Sources */,
@@ -298,7 +310,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = tw.com.skl.DHCapture;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "d8cf1fd3-df03-4682-87eb-d4d9ce1733b0";
+				PROVISIONING_PROFILE = "1d97a078-8fd8-4af9-a873-07ba72921e08";
 			};
 			name = Debug;
 		};
@@ -311,7 +323,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = tw.com.skl.DHCapture;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "d8cf1fd3-df03-4682-87eb-d4d9ce1733b0";
+				PROVISIONING_PROFILE = "1d97a078-8fd8-4af9-a873-07ba72921e08";
 			};
 			name = Release;
 		};
@@ -334,6 +346,7 @@
 				8CF5862E1D45BFAE006A4A06 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
