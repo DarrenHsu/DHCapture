@@ -138,41 +138,6 @@ static DHCaptureManager *_manager = nil;
             self.setupResult = AVCamSetupResultSessionConfigurationFailed;
         }
 
-//        AVCaptureAudioDataOutput *audioDataOutput = [[AVCaptureAudioDataOutput alloc] init];
-//        if ([_session canAddOutput:audioDataOutput]) {
-//            [audioDataOutput setSampleBufferDelegate:self queue:dispatch_queue_create("audio capture queue", NULL)];
-//            [_session addOutput:audioDataOutput];
-//            _audioDataOutput = audioDataOutput;
-//        }else {
-//            NSLog( @"Could not add audio data output to the session" );
-//            self.setupResult = AVCamSetupResultSessionConfigurationFailed;
-//        }
-//
-//        AVCaptureMovieFileOutput *movieFileOutput = [[AVCaptureMovieFileOutput alloc] init];
-//        if ( [self.session canAddOutput:movieFileOutput] ) {
-//            [self.session addOutput:movieFileOutput];
-//            AVCaptureConnection *connection = [movieFileOutput connectionWithMediaType:AVMediaTypeVideo];
-//            if ( connection.isVideoStabilizationSupported ) {
-//                connection.preferredVideoStabilizationMode = AVCaptureVideoStabilizationModeAuto;
-//            }
-//            self.movieFileOutput = movieFileOutput;
-//        }
-//        else {
-//            NSLog( @"Could not add movie file output to the session" );
-//            self.setupResult = AVCamSetupResultSessionConfigurationFailed;
-//        }
-//        
-//        AVCaptureStillImageOutput *stillImageOutput = [[AVCaptureStillImageOutput alloc] init];
-//        if ( [self.session canAddOutput:stillImageOutput] ) {
-//            stillImageOutput.outputSettings = @{AVVideoCodecKey : AVVideoCodecJPEG};
-//            [self.session addOutput:stillImageOutput];
-//            self.stillImageOutput = stillImageOutput;
-//        }
-//        else {
-//            NSLog( @"Could not add still image output to the session" );
-//            self.setupResult = AVCamSetupResultSessionConfigurationFailed;
-//        }
-        
         [self.session commitConfiguration];
     });
 }
@@ -195,9 +160,14 @@ static DHCaptureManager *_manager = nil;
     dispatch_async(_sessionQueue, ^{
         switch (_setupResult) {
             case AVCamSetupResultSuccess: {
-//                [self addObservers];
                 [_session startRunning];
                 _sessionRunning = _session.isRunning;
+
+                dispatch_async( dispatch_get_main_queue(), ^{
+                    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(createMovie) userInfo:nil repeats:YES];
+//                    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(saveImage) userInfo:nil repeats:YES];
+                });
+
                 NSLog(@"capture start");
                 break;
             } case AVCamSetupResultCameraNotAuthorized: {
@@ -213,9 +183,6 @@ static DHCaptureManager *_manager = nil;
             }
         }
     });
-
-    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(createMovie) userInfo:nil repeats:YES];
-
 }
 
 - (void) startSuccess:(void(^)(void)) success
@@ -229,7 +196,9 @@ static DHCaptureManager *_manager = nil;
 }
 
 - (void) stopCompletely:(void(^)(void)) complete {
-    [_saveTimer invalidate];
+    dispatch_async( dispatch_get_main_queue(), ^{
+        [_saveTimer invalidate];
+    });
 
     dispatch_async(_sessionQueue, ^{
         if (!_sessionRunning) return;
@@ -239,8 +208,6 @@ static DHCaptureManager *_manager = nil;
             _sessionRunning = [_session isRunning];
 
             [_imageFrameArray removeAllObjects];
-
-//            [self removeObservers];
 
             dispatch_async( dispatch_get_main_queue(), ^{
                 if (complete) complete();
@@ -259,6 +226,8 @@ static DHCaptureManager *_manager = nil;
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
     size_t width = CVPixelBufferGetWidth(imageBuffer);
     size_t height = CVPixelBufferGetHeight(imageBuffer);
+
+    NSLog(@"%zu %zu", width, height);
 
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGContextRef context = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
@@ -330,12 +299,11 @@ static DHCaptureManager *_manager = nil;
 
     [adaptor appendPixelBuffer:buffer withPresentationTime:kCMTimeZero];
     int i = 0;
+    CGFloat base = 600.f / array.count;
     while (writerInput.readyForMoreMediaData) {
-        CMTime frameTime = CMTimeMake(150, 600);
-        CMTime lastTime = CMTimeMake(150 * i, 600);
+        CMTime frameTime = CMTimeMake(base, 600);
+        CMTime lastTime = CMTimeMake(base * i, 600);
         CMTime presentTime = CMTimeAdd(lastTime, frameTime);
-
-//        if (i == 0) presentTime = CMTimeMake(0, 600);
 
         if (i >= [array count]) {
             buffer = NULL;
@@ -400,9 +368,14 @@ static DHCaptureManager *_manager = nil;
 }
 
 - (void) createMovie {
-    NSMutableArray *tmpArray = [NSMutableArray new];
-    for (UIImage *image in _imageFrameArray)
+    _isCreateNow = YES;
+
+    __block NSMutableArray *tmpArray = [NSMutableArray new];
+    for (UIImage *image in _imageFrameArray) {
         [tmpArray addObject:image];
+    }
+
+    [_imageFrameArray removeObjectsInArray:tmpArray];
 
     [_queue addOperationWithBlock:^{
         NSString *key = [NSString stringWithFormat:@"%zd",arc4random_uniform(74)];
@@ -418,8 +391,6 @@ static DHCaptureManager *_manager = nil;
             NSLog(@"%@ image count %zd",key,tmpArray.count);
             NSLog(@"%@ write file %@",key,path);
 
-            [tmpArray removeAllObjects];
-
             _isCreateNow = NO;
         }];
     }];
@@ -429,7 +400,10 @@ static DHCaptureManager *_manager = nil;
 - (void) captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
     if (captureOutput == _videoDataOutput) {
 
-        if (_isCreateNow) return;
+        if (_isCreateNow) {
+            [self stopCompletely:NULL];
+            return;
+        }
 
         UIImage *image = [self imageFromSampleBuffer:sampleBuffer];
         _imageSize = image.size;
@@ -437,13 +411,6 @@ static DHCaptureManager *_manager = nil;
         [_imageFrameArray addObject:image];
 
         dispatch_async( dispatch_get_main_queue(), ^{
-            if (_imageFrameArray.count >= 10) {
-                _isCreateNow = YES;
-
-                [self createMovie];
-                [self stopCompletely:NULL];
-            }
-
             if (_CaptureProcess)
                 _CaptureProcess(image);
         });
