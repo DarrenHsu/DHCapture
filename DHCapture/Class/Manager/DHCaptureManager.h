@@ -29,7 +29,8 @@
 
 - (void) stopCompletely:(void(^)(void)) complete;
 
-- (NSString *) getBasePath;
+- (NSString *) getMoviesFolder;
+- (NSString *) getFramesFolder;
 - (NSArray *) getMovieFiles;
 
 @end

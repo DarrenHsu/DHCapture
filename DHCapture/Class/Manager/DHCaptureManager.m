@@ -126,9 +126,9 @@ static DHCaptureManager *_manager = nil;
 
         AVCaptureVideoDataOutput *videoDataOutput = [[AVCaptureVideoDataOutput alloc] init];
         if ([_session canAddOutput:videoDataOutput]) {
-            dispatch_queue_t queue = dispatch_queue_create("VideoCaptureQueue", NULL);
+//            dispatch_queue_t queue = dispatch_queue_create("VideoCaptureQueue", NULL);
 
-            [videoDataOutput setSampleBufferDelegate:self queue:queue];
+            [videoDataOutput setSampleBufferDelegate:self queue:_sessionQueue];
             videoDataOutput.videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey: [NSNumber numberWithInt:kCVPixelFormatType_32BGRA]};
 
             [_session addOutput:videoDataOutput];
@@ -163,10 +163,9 @@ static DHCaptureManager *_manager = nil;
                 [_session startRunning];
                 _sessionRunning = _session.isRunning;
 
-                dispatch_async( dispatch_get_main_queue(), ^{
-                    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(createMovie) userInfo:nil repeats:YES];
-//                    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(saveImage) userInfo:nil repeats:YES];
-                });
+//                dispatch_async( dispatch_get_main_queue(), ^{
+//                    _saveTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(createMovie) userInfo:nil repeats:YES];
+//                });
 
                 NSLog(@"capture start");
                 break;
@@ -218,6 +217,21 @@ static DHCaptureManager *_manager = nil;
     });
 }
 
+- (void) stop {
+    [_saveTimer invalidate];
+
+    if (!_sessionRunning) return;
+
+    if (_setupResult == AVCamSetupResultSuccess ) {
+        [_session stopRunning];
+        _sessionRunning = [_session isRunning];
+
+        [_imageFrameArray removeAllObjects];
+
+        NSLog(@"capture stop");
+    }
+}
+
 - (UIImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer {
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
@@ -227,24 +241,20 @@ static DHCaptureManager *_manager = nil;
     size_t width = CVPixelBufferGetWidth(imageBuffer);
     size_t height = CVPixelBufferGetHeight(imageBuffer);
 
-    NSLog(@"%zu %zu", width, height);
-
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(baseAddress, width, height, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+    CGContextRef context = CGBitmapContextCreate(baseAddress, width / 4, height / 4, 8, bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
     CGImageRef quartzImage = CGBitmapContextCreateImage(context);
     CVPixelBufferUnlockBaseAddress(imageBuffer,0);
 
     CGContextRelease(context);
     CGColorSpaceRelease(colorSpace);
-
     UIImage *image = [UIImage imageWithCGImage:quartzImage];
-
     CGImageRelease(quartzImage);
-    
-    return (image);
+
+    return image;
 }
 
-- (NSString *) getBasePath {
+- (NSString *) getMoviesFolder {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
     NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/movie"];
     NSFileManager *manager = [NSFileManager defaultManager];
@@ -256,8 +266,20 @@ static DHCaptureManager *_manager = nil;
     return tempDirectory;
 }
 
+- (NSString *) getFramesFolder {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/frames"];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![manager fileExistsAtPath:tempDirectory]) {
+        NSError *error;
+        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
+    }
+
+    return tempDirectory;
+}
+
 - (NSArray *) getMovieFiles {
-    NSString *basePath = [self getBasePath];
+    NSString *basePath = [self getMoviesFolder];
     NSError *error;
     NSArray *directoryContent = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:basePath error:&error];
     NSMutableArray *matches = [NSMutableArray new];
@@ -333,10 +355,12 @@ static DHCaptureManager *_manager = nil;
             CVPixelBufferPoolRelease(adaptor.pixelBufferPool);
             break;
         }
+
+        NSLog(@"%zd",[array count]);
     }
 }
 
-- (CVPixelBufferRef) pixelBufferFromCGImage: (CGImageRef) image  size:(CGSize)imageSize {
+- (CVPixelBufferRef) pixelBufferFromCGImage:(CGImageRef) image  size:(CGSize) imageSize {
     NSDictionary *options = [NSDictionary dictionaryWithObjectsAndKeys:
                              [NSNumber numberWithBool:YES], kCVPixelBufferCGImageCompatibilityKey,
                              [NSNumber numberWithBool:YES], kCVPixelBufferCGBitmapContextCompatibilityKey,nil];
@@ -385,7 +409,7 @@ static DHCaptureManager *_manager = nil;
 
         NSLog(@"%@ createMovie %zd",key,tmpArray.count);
 
-        NSString *path = [[self getBasePath] stringByAppendingFormat:@"/%@.mp4",[NSDate new]];
+        NSString *path = [[self getMoviesFolder] stringByAppendingFormat:@"/%@.mp4",[NSDate new]];
 
         [self write:key imageAsMovie:tmpArray toPath:path size:_imageSize duration:1 complete:^{
             NSLog(@"%@ image count %zd",key,tmpArray.count);
@@ -401,14 +425,15 @@ static DHCaptureManager *_manager = nil;
     if (captureOutput == _videoDataOutput) {
 
         if (_isCreateNow) {
-            [self stopCompletely:NULL];
+            [self stop];
             return;
         }
 
         UIImage *image = [self imageFromSampleBuffer:sampleBuffer];
         _imageSize = image.size;
 
-        [_imageFrameArray addObject:image];
+        NSDate *date = [NSDate new];
+        NSLog(@"%zd",[date timeIntervalSince1970]);
 
         dispatch_async( dispatch_get_main_queue(), ^{
             if (_CaptureProcess)

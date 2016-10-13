@@ -45,7 +45,7 @@
 }
 
 - (void) playMovie:(NSString *) path {
-    NSString *fullPath = [[_manager getBasePath] stringByAppendingFormat:@"/%@",path];
+    NSString *fullPath = [[_manager getMoviesFolder] stringByAppendingFormat:@"/%@",path];
     NSURL *url = [[NSURL alloc] initFileURLWithPath:fullPath];
 
     NSError *error;
@@ -93,7 +93,7 @@
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (editingStyle == UITableViewCellEditingStyleDelete) {
-        NSString *fullPath = [[_manager getBasePath] stringByAppendingFormat:@"/%@",_movies[indexPath.row]];
+        NSString *fullPath = [[_manager getMoviesFolder] stringByAppendingFormat:@"/%@",_movies[indexPath.row]];
         NSFileManager *fileManager = [NSFileManager defaultManager];
         if ([fileManager fileExistsAtPath:fullPath]) {
             NSError *error;
