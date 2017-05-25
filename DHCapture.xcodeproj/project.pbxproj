@@ -141,11 +141,12 @@
 		8CF5860D1D45BFAE006A4A06 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0730;
+				LastUpgradeCheck = 0830;
 				ORGANIZATIONNAME = SKL;
 				TargetAttributes = {
 					8CF586141D45BFAE006A4A06 = {
 						CreatedOnToolsVersion = 7.3;
+						DevelopmentTeam = 796PUW3YDR;
 					};
 				};
 			};
@@ -231,8 +232,10 @@
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
@@ -276,8 +279,10 @@
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
@@ -306,11 +311,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer: Darren Hsu (W45ZNX26E6)";
+				DEVELOPMENT_TEAM = 796PUW3YDR;
 				INFOPLIST_FILE = DHCapture/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = tw.com.skl.DHCapture;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "1d97a078-8fd8-4af9-a873-07ba72921e08";
+				PROVISIONING_PROFILE = "1831bcda-9e96-4601-a977-3b4f732146f6";
+				PROVISIONING_PROFILE_SPECIFIER = "iOS Development";
 			};
 			name = Debug;
 		};
@@ -319,11 +326,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer: Darren Hsu (W45ZNX26E6)";
+				DEVELOPMENT_TEAM = 796PUW3YDR;
 				INFOPLIST_FILE = DHCapture/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = tw.com.skl.DHCapture;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "1d97a078-8fd8-4af9-a873-07ba72921e08";
+				PROVISIONING_PROFILE = "1831bcda-9e96-4601-a977-3b4f732146f6";
+				PROVISIONING_PROFILE_SPECIFIER = "iOS Development";
 			};
 			name = Release;
 		};
