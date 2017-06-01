@@ -17,17 +17,12 @@
 + (instancetype) shardInstance;
 
 - (void) initializeWithView:(DHPreviewView *) view;
-
-- (void) startSuccess:(void(^)(void)) success
-  cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized
-               failed:(void(^)(void)) failed;
-
-- (void) startSuccess:(void(^)(void)) success
-         captureImage:(void(^)(UIImage *image)) capture
-  cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized
-               failed:(void(^)(void)) failed;
-
+- (void) startSuccess:(void(^)(void)) success cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized failed:(void(^)(void)) failed;
 - (void) stopCompletely:(void(^)(void)) complete;
+
+@end
+
+@interface DHCaptureManager (Resource)
 
 - (NSString *) getMoviesFolder;
 - (NSString *) getFramesFolder;

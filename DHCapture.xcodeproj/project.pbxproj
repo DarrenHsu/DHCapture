@@ -11,7 +11,6 @@
 		8CA5D8AA1D5089A7003A4035 /* DHListViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CA5D8A91D5089A7003A4035 /* DHListViewController.m */; };
 		8CF5861A1D45BFAE006A4A06 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF586191D45BFAE006A4A06 /* main.m */; };
 		8CF5861D1D45BFAE006A4A06 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF5861C1D45BFAE006A4A06 /* AppDelegate.m */; };
-		8CF586201D45BFAE006A4A06 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8CF5861F1D45BFAE006A4A06 /* ViewController.m */; };
 		8CF586231D45BFAE006A4A06 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8CF586211D45BFAE006A4A06 /* Main.storyboard */; };
 		8CF586251D45BFAE006A4A06 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CF586241D45BFAE006A4A06 /* Assets.xcassets */; };
 		8CF586281D45BFAE006A4A06 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8CF586261D45BFAE006A4A06 /* LaunchScreen.storyboard */; };
@@ -28,8 +27,6 @@
 		8CF586191D45BFAE006A4A06 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		8CF5861B1D45BFAE006A4A06 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		8CF5861C1D45BFAE006A4A06 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		8CF5861E1D45BFAE006A4A06 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		8CF5861F1D45BFAE006A4A06 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
 		8CF586221D45BFAE006A4A06 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		8CF586241D45BFAE006A4A06 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8CF586271D45BFAE006A4A06 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -73,8 +70,6 @@
 				8CF586381D45EC20006A4A06 /* Class */,
 				8CF5861B1D45BFAE006A4A06 /* AppDelegate.h */,
 				8CF5861C1D45BFAE006A4A06 /* AppDelegate.m */,
-				8CF5861E1D45BFAE006A4A06 /* ViewController.h */,
-				8CF5861F1D45BFAE006A4A06 /* ViewController.m */,
 				8CF586211D45BFAE006A4A06 /* Main.storyboard */,
 				8CF586241D45BFAE006A4A06 /* Assets.xcassets */,
 				8CF586261D45BFAE006A4A06 /* LaunchScreen.storyboard */,
@@ -188,7 +183,6 @@
 			files = (
 				8CF5863C1D45EC41006A4A06 /* DHCaptureManager.m in Sources */,
 				8CA5D8A71D50898F003A4035 /* DHCaptureViewController.m in Sources */,
-				8CF586201D45BFAE006A4A06 /* ViewController.m in Sources */,
 				8CA5D8AA1D5089A7003A4035 /* DHListViewController.m in Sources */,
 				8CF5861D1D45BFAE006A4A06 /* AppDelegate.m in Sources */,
 				8CF5861A1D45BFAE006A4A06 /* main.m in Sources */,

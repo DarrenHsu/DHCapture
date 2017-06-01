@@ -21,11 +21,10 @@
 
 - (IBAction) startPressed:(id)sender {
     if (!_manager.isSessionRunning) {
-        [_manager startSuccess:NULL captureImage:^(UIImage *image) {
+        [_manager startSuccess:^{
             [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
-
         } cameraNotAuthorized:^{
-
+            
         } failed:^{
             
         }];

@@ -9,23 +9,87 @@
 #import "DHCaptureManager.h"
 @import AVFoundation;
 
+#define CAPTURE_FRAMES_PER_SECOND		20
+
 typedef NS_ENUM(NSInteger, AVCamSetupResult) {
     AVCamSetupResultSuccess,
     AVCamSetupResultCameraNotAuthorized,
     AVCamSetupResultSessionConfigurationFailed
 };
 
+@implementation DHCaptureManager (Resource)
+
+- (NSString *) getCurrentFileName {
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateFormat:@"yyyy-MM-dd_HH:mm:ss"];
+    NSString *fileName = [dateFormatter stringFromDate:[NSDate new]];
+    
+    NSString *outputPath = [NSString stringWithFormat:@"%@/%@.mov",[self getMoviesFolder], fileName];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if ([fileManager fileExistsAtPath:outputPath]) {
+        NSError *error;
+        [fileManager removeItemAtPath:outputPath error:&error];
+    }
+    
+    return outputPath;
+}
+
+- (NSString *) getMoviesFolder {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/movie"];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![manager fileExistsAtPath:tempDirectory]) {
+        NSError *error;
+        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
+    }
+    
+    return tempDirectory;
+}
+
+- (NSString *) getFramesFolder {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/frames"];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![manager fileExistsAtPath:tempDirectory]) {
+        NSError *error;
+        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
+    }
+    
+    return tempDirectory;
+}
+
+- (NSArray *) getMovieFiles {
+    NSString *basePath = [self getMoviesFolder];
+    NSError *error;
+    NSArray *directoryContent = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:basePath error:&error];
+    NSMutableArray *matches = [NSMutableArray new];
+    
+    for (NSString *item in directoryContent) {
+        [matches addObject:item];
+    }
+    
+    return matches;
+}
+
+@end
+
+
 static DHCaptureManager *_manager = nil;
 
-@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate,AVCaptureAudioDataOutputSampleBufferDelegate> {
+@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate,
+                                AVCaptureAudioDataOutputSampleBufferDelegate,
+                                AVCaptureFileOutputRecordingDelegate> {
     CGSize _imageSize;
     BOOL _isCreateNow;
 }
 
-@property (nonatomic) dispatch_queue_t sessionQueue;
-@property (nonatomic) AVCaptureSession *session;
-@property (nonatomic) AVCaptureDeviceInput *videoDeviceInput;
 @property (nonatomic) AVCamSetupResult setupResult;
+@property (nonatomic) dispatch_queue_t sessionQueue;
+
+@property (nonatomic) AVCaptureSession *session;
+
+@property (nonatomic) AVCaptureDeviceInput *videoDeviceInput;
+
 @property (nonatomic) AVCaptureMovieFileOutput *movieDataOutput;
 @property (nonatomic) AVCaptureVideoDataOutput *videoDataOutput;
 @property (nonatomic) AVCaptureAudioDataOutput *audioDataOutput;
@@ -80,65 +144,79 @@ void sessionThread(dispatch_block_t block) {
     sessionThread(^{
         if (_setupResult != AVCamSetupResultSuccess)
             return;
+
+        [self addInput];
         
-        NSError *error = nil;
+        [self addOutput];
         
-        AVCaptureDevice *videoDevice = [self deviceWithMediaType:AVMediaTypeVideo preferringPosition:AVCaptureDevicePositionBack];
-        AVCaptureDeviceInput *videoDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
-        
-        if (!videoDeviceInput)
-            NSLog(@"Could not create video device input: %@", error);
-        
-        [_session beginConfiguration];
-        
-        if ([_session canAddInput:videoDeviceInput]) {
-            [_session addInput:videoDeviceInput];
-            _videoDeviceInput = videoDeviceInput;
-            
-            mainThread(^{
-                UIInterfaceOrientation statusBarOrientation = [UIApplication sharedApplication].statusBarOrientation;
-                AVCaptureVideoOrientation initialVideoOrientation = AVCaptureVideoOrientationPortrait;
-                if (statusBarOrientation != UIInterfaceOrientationUnknown )
-                    initialVideoOrientation = (AVCaptureVideoOrientation)statusBarOrientation;
-                
-                AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)view.layer;
-                previewLayer.connection.videoOrientation = initialVideoOrientation;
-            });
-        } else {
-            NSLog( @"Could not add video device input to the session" );
-            _setupResult = AVCamSetupResultSessionConfigurationFailed;
-        }
-        
-        AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
-        AVCaptureDeviceInput *audioDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&error];
-        
-        if (!audioDeviceInput)
-            NSLog( @"Could not create audio device input: %@", error );
-        
-        if ([_session canAddInput:audioDeviceInput]) {
-            [_session addInput:audioDeviceInput];
-        } else {
-            NSLog( @"Could not add audio device input to the session" );
-        }
-        
-        AVCaptureMovieFileOutput *movieDataOutput = [AVCaptureMovieFileOutput new];
-        if ([_session canAddOutput:movieDataOutput]) {
-            
-            Float64 TotalSeconds = 60;
-            int32_t preferredTimeScale = 30;
-            CMTime maxDuration = CMTimeMakeWithSeconds(TotalSeconds, preferredTimeScale);
-            movieDataOutput.maxRecordedDuration = maxDuration;
-            movieDataOutput.minFreeDiskSpaceLimit = 1024 * 1024;
-            
-            [_session addOutput:movieDataOutput];
-            _movieDataOutput = movieDataOutput;
-        }else {
-            NSLog( @"Could not add video data output to the session" );
-            self.setupResult = AVCamSetupResultSessionConfigurationFailed;
-        }
+        if ([self.session canSetSessionPreset:AVCaptureSessionPresetiFrame960x540])
+            [self.session setSessionPreset:AVCaptureSessionPresetiFrame960x540];
         
         [self.session commitConfiguration];
     });
+}
+
+- (void) addInput {
+    NSError *error = nil;
+    
+    AVCaptureDevice *videoDevice = [self deviceWithMediaType:AVMediaTypeVideo preferringPosition:AVCaptureDevicePositionBack];
+    AVCaptureDeviceInput *videoDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
+    
+    if (!videoDeviceInput)
+        NSLog(@"Could not create video device input: %@", error);
+    
+    [_session beginConfiguration];
+    
+    if ([_session canAddInput:videoDeviceInput]) {
+        [_session addInput:videoDeviceInput];
+        _videoDeviceInput = videoDeviceInput;
+        
+//        mainThread(^{
+//            UIInterfaceOrientation statusBarOrientation = [UIApplication sharedApplication].statusBarOrientation;
+//            AVCaptureVideoOrientation initialVideoOrientation = AVCaptureVideoOrientationPortrait;
+//            if (statusBarOrientation != UIInterfaceOrientationUnknown )
+//                initialVideoOrientation = (AVCaptureVideoOrientation)statusBarOrientation;
+//            
+//            AVCaptureVideoPreviewLayer *previewLayer = (AVCaptureVideoPreviewLayer *)view.layer;
+//            previewLayer.connection.videoOrientation = initialVideoOrientation;
+//        });
+        
+    } else {
+        NSLog( @"Could not add video device input to the session" );
+        _setupResult = AVCamSetupResultSessionConfigurationFailed;
+    }
+    
+    AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+    AVCaptureDeviceInput *audioDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&error];
+    
+    if (!audioDeviceInput)
+        NSLog( @"Could not create audio device input: %@", error );
+    
+    if ([_session canAddInput:audioDeviceInput]) {
+        [_session addInput:audioDeviceInput];
+    } else {
+        NSLog( @"Could not add audio device input to the session" );
+    }
+}
+
+- (void) addOutput {
+    /* Add Output */
+    AVCaptureMovieFileOutput *movieDataOutput = [AVCaptureMovieFileOutput new];
+    if ([_session canAddOutput:movieDataOutput]) {
+        
+        Float64 TotalSeconds = 60;
+        int32_t preferredTimeScale = 30;
+        CMTime maxDuration = CMTimeMakeWithSeconds(TotalSeconds, preferredTimeScale);
+        movieDataOutput.maxRecordedDuration = maxDuration;
+        movieDataOutput.minFreeDiskSpaceLimit = 1024 * 1024;
+        
+        [_session addOutput:movieDataOutput];
+        _movieDataOutput = movieDataOutput;
+        
+    }else {
+        NSLog( @"Could not add video data output to the session" );
+        _setupResult = AVCamSetupResultSessionConfigurationFailed;
+    }
 }
 
 - (AVCaptureDevice *) deviceWithMediaType:(NSString *) mediaType preferringPosition:(AVCaptureDevicePosition) position {
@@ -155,11 +233,19 @@ void sessionThread(dispatch_block_t block) {
     return captureDevice;
 }
 
+#pragma mark -
 - (void) startSuccess:(void(^)(void)) success cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized failed:(void(^)(void)) failed {
     sessionThread(^{
+        if (_sessionRunning) return;
+        
         switch (_setupResult) {
             case AVCamSetupResultSuccess: {
+                NSString *outputPath = [self getCurrentFileName];
+                NSURL *outputURL = [[NSURL alloc] initFileURLWithPath:outputPath];
+                
                 [_session startRunning];
+                [_movieDataOutput startRecordingToOutputFileURL:outputURL recordingDelegate:self];
+                
                 _sessionRunning = _session.isRunning;
                 break;
             } case AVCamSetupResultCameraNotAuthorized: {
@@ -179,16 +265,6 @@ void sessionThread(dispatch_block_t block) {
     });
 }
 
-- (void) startSuccess:(void(^)(void)) success
-         captureImage:(void(^)(UIImage *image)) capture
-  cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized
-               failed:(void(^)(void)) failed {
-
-    _CaptureProcess = capture;
-
-    [self startSuccess:success cameraNotAuthorized:cameraNotAuthorized failed:failed];
-}
-
 - (void) stopCompletely:(void(^)(void)) complete {
     sessionThread(^{
         if (!_sessionRunning) return;
@@ -197,8 +273,9 @@ void sessionThread(dispatch_block_t block) {
             [_session stopRunning];
             _sessionRunning = [_session isRunning];
             
-            dispatch_async( dispatch_get_main_queue(), ^{
-                if (complete) complete();
+            mainThread(^{
+                if (complete)
+                    complete();
             });
             
             NSLog(@"capture stop");
@@ -206,46 +283,26 @@ void sessionThread(dispatch_block_t block) {
     });
 }
 
-- (NSString *) getMoviesFolder {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/movie"];
-    NSFileManager *manager = [NSFileManager defaultManager];
-    if (![manager fileExistsAtPath:tempDirectory]) {
-        NSError *error;
-        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
-    }
-
-    return tempDirectory;
+#pragma mark - AVCaptureFileOutputRecordingDelegate Methods
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didStartRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections {
+    NSLog(@"%@", NSStringFromSelector(_cmd));
 }
 
-- (NSString *) getFramesFolder {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-    NSString *tempDirectory = [[paths objectAtIndex:0] stringByAppendingFormat:@"/frames"];
-    NSFileManager *manager = [NSFileManager defaultManager];
-    if (![manager fileExistsAtPath:tempDirectory]) {
-        NSError *error;
-        [manager createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&error];
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray *)connections error:(NSError *)error {
+    NSLog(@"%@", NSStringFromSelector(_cmd));
+    
+    BOOL recordedSuccessfully = YES;
+    if ([error code] != noErr) {
+        id value = [[error userInfo] objectForKey:AVErrorRecordingSuccessfullyFinishedKey];
+        if (value)
+            recordedSuccessfully = [value boolValue];
     }
-
-    return tempDirectory;
 }
 
-- (NSArray *) getMovieFiles {
-    NSString *basePath = [self getMoviesFolder];
-    NSError *error;
-    NSArray *directoryContent = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:basePath error:&error];
-    NSMutableArray *matches = [NSMutableArray new];
-
-    for (NSString *item in directoryContent) {
-        if ([[item pathExtension] isEqualToString:@"mp4"]) {
-            [matches addObject:item];
-        }
-    }
-
-    return matches;
+#pragma mark - AVCaptureFileOutputDelegate Delegate
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
+    NSLog(@"%@", NSStringFromSelector(_cmd));
 }
-
-
 
 
 //- (UIImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer {
