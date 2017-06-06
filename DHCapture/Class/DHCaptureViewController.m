@@ -22,7 +22,7 @@
 - (IBAction) startPressed:(id)sender {
     if (!_manager.isSessionRunning) {
         [_manager startSuccess:^{
-            [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+            [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
         } cameraNotAuthorized:^{
             
         } failed:^{
@@ -30,7 +30,7 @@
         }];
     }else {
         [_manager stopCompletely:^{
-            [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+            [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
         }];
     }
 }
@@ -51,7 +51,7 @@
 
 - (void) viewDidDisappear:(BOOL)animated {
     [_manager stopCompletely:^{
-        [_startButton setTitle:_manager.isSessionRunning ? @"Stop" : @"Start"  forState:UIControlStateNormal];
+        [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
     }];
 
     [super viewDidDisappear:animated];

@@ -386,13 +386,16 @@ void sessionThread(dispatch_block_t block) {
         
         switch (_setupResult) {
             case AVCamSetupResultSuccess: {
-                _sessionRunning = _session.isRunning;
-                
                 [_session startRunning];
+                
+                _sessionRunning = _session.isRunning;
                 
 //                [self startRecording];
                 [self startAssertWirter];
                 
+                mainThread(^{
+                    if (success) success();
+                });
                 break;
             } case AVCamSetupResultCameraNotAuthorized: {
                 mainThread(^{

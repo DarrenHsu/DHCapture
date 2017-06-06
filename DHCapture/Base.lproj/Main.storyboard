@@ -59,13 +59,13 @@
                         <rect key="frame" x="0.0" y="0.0" width="414" height="736"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="863-M2-GmJ">
-                                <rect key="frame" x="174.66666666666666" y="649" width="65" height="30"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="863-M2-GmJ">
+                                <rect key="frame" x="189.33333333333326" y="643" width="35" height="35"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="65" id="Tl5-2G-CQU"/>
-                                    <constraint firstAttribute="height" constant="30" id="dQf-ar-bPf"/>
+                                    <constraint firstAttribute="width" constant="35" id="Tl5-2G-CQU"/>
+                                    <constraint firstAttribute="height" constant="35" id="dQf-ar-bPf"/>
                                 </constraints>
-                                <state key="normal" title="Start"/>
+                                <state key="normal" image="ic_play"/>
                                 <connections>
                                     <action selector="startPressed:" destination="vWk-am-5BF" eventType="touchUpInside" id="XdZ-cH-teG"/>
                                 </connections>
@@ -77,11 +77,11 @@
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="EFs-3n-idN" firstAttribute="top" secondItem="863-M2-GmJ" secondAttribute="bottom" constant="8" id="3Yf-Lx-hbq"/>
+                            <constraint firstItem="EFs-3n-idN" firstAttribute="top" secondItem="863-M2-GmJ" secondAttribute="bottom" constant="9" id="3Yf-Lx-hbq"/>
                             <constraint firstItem="qGf-M7-7kp" firstAttribute="leading" secondItem="ZEg-EM-V3X" secondAttribute="leading" id="4l1-8X-2eq"/>
-                            <constraint firstItem="863-M2-GmJ" firstAttribute="centerX" secondItem="ZEg-EM-V3X" secondAttribute="centerX" id="Q8k-rN-Iwc"/>
+                            <constraint firstItem="863-M2-GmJ" firstAttribute="centerX" secondItem="ZEg-EM-V3X" secondAttribute="centerX" constant="-0.16666666666674246" id="Q8k-rN-Iwc"/>
                             <constraint firstAttribute="trailing" secondItem="qGf-M7-7kp" secondAttribute="trailing" id="crC-ne-qOx"/>
-                            <constraint firstItem="863-M2-GmJ" firstAttribute="top" secondItem="qGf-M7-7kp" secondAttribute="bottom" constant="14" id="o5W-zb-TYR"/>
+                            <constraint firstItem="863-M2-GmJ" firstAttribute="top" secondItem="qGf-M7-7kp" secondAttribute="bottom" constant="8" id="o5W-zb-TYR"/>
                             <constraint firstItem="qGf-M7-7kp" firstAttribute="top" secondItem="8EM-P9-2fi" secondAttribute="bottom" constant="8" id="tUV-HH-2bT"/>
                         </constraints>
                     </view>
@@ -114,4 +114,7 @@
             <point key="canvasLocation" x="255" y="829"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="ic_play" width="200" height="200"/>
+    </resources>
 </document>
