@@ -23,10 +23,12 @@
     if (!_manager.isSessionRunning) {
         [_manager startSuccess:^{
             [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
+        } completely:^{
+            [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
         } cameraNotAuthorized:^{
-            
+            [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
         } failed:^{
-            
+            [_startButton setImage:[UIImage imageNamed:_manager.isSessionRunning ? @"ic_stop" : @"ic_play"] forState:UIControlStateNormal];
         }];
     }else {
         [_manager stopCompletely:^{

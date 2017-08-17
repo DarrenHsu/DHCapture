@@ -18,6 +18,12 @@ typedef NS_ENUM(NSInteger, AVCamSetupResult) {
     AVCamSetupResultSessionConfigurationFailed
 };
 
+typedef NS_ENUM(NSInteger, AVOutputType) {
+    AVOutputTypeRecording,
+    AVOutputTypeAssertWriter
+};
+
+
 #pragma mark -
 /* --------------------------------------------------- Process -------------------------------------------- */
 
@@ -117,11 +123,16 @@ typedef NS_ENUM(NSInteger, AVCamSetupResult) {
 
 static DHCaptureManager *_manager = nil;
 
-@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate,
-                                AVCaptureAudioDataOutputSampleBufferDelegate,
-                                AVCaptureFileOutputRecordingDelegate> {
+
+
+@interface DHCaptureManager () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate, AVCaptureFileOutputRecordingDelegate> {
     CGSize _imageSize;
     BOOL _isCreateNow;
+    BOOL _isStartSession;
+    AVOutputType _type;
+    
+    Float64 _currentCaptureSecond;
+    Float64 _orignalCaptureSecond;
 }
 
 @property (nonatomic) AVCamSetupResult setupResult;
@@ -146,6 +157,7 @@ static DHCaptureManager *_manager = nil;
 @property (nonatomic) CMTime lastSampleTime;
 
 @property (copy) void(^CaptureProcess)(UIImage *);
+@property (copy) void(^CaptureFinish)(void);
 
 @end
 
@@ -175,6 +187,8 @@ void sessionThread(dispatch_block_t block) {
     _session = [AVCaptureSession new];
     _manager.setupResult = AVCamSetupResultSuccess;
     view.session = _session;
+    
+    _type = AVOutputTypeAssertWriter;
 
     switch([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo]) {
         case AVAuthorizationStatusAuthorized: {
@@ -280,7 +294,9 @@ void sessionThread(dispatch_block_t block) {
     [self addVideoOutput];
     [self addAudioOutput];
     
-//    [self addMovieOutput];
+    if (_type == AVOutputTypeRecording) {
+        [self addMovieOutput];
+    }
 }
 
 - (void) addVideoOutput {
@@ -334,7 +350,7 @@ void sessionThread(dispatch_block_t block) {
     NSString *outputPath = [self getCurrentFileName];
     NSURL *outputURL = [[NSURL alloc] initFileURLWithPath:outputPath];
 
-    CGSize size = CGSizeMake(960, 540);
+    CGSize size = CGSizeMake(540, 960);
     
     NSDictionary *videoCompressionPropertys = @{AVVideoAverageBitRateKey : @(128.0 * 1024.0)};
     NSDictionary *videoSettings = @{AVVideoCodecKey : AVVideoCodecH264,
@@ -377,7 +393,11 @@ void sessionThread(dispatch_block_t block) {
 }
 
 #pragma mark - Action Methods
-- (void) startSuccess:(void(^)(void)) success cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized failed:(void(^)(void)) failed {
+- (void) startSuccess:(void(^)(void)) success completely:(void(^)(void)) complete cameraNotAuthorized:(void(^)(void)) cameraNotAuthorized failed:(void(^)(void)) failed {
+    _CaptureFinish = complete;
+    _currentCaptureSecond = 0;
+    _orignalCaptureSecond = 0;
+    
     sessionThread(^{
         if (_sessionRunning) return;
         
@@ -387,8 +407,11 @@ void sessionThread(dispatch_block_t block) {
                 
                 _sessionRunning = _session.isRunning;
                 
-//                [self startRecording];
-                [self startAssertWirter];
+                if (_type == AVOutputTypeRecording) {
+                    [self startRecording];
+                }else {
+                    [self startAssertWirter];
+                }
                 
                 mainThread(^{
                     if (success) success();
@@ -410,15 +433,17 @@ void sessionThread(dispatch_block_t block) {
 }
 
 - (void) stopCompletely:(void(^)(void)) complete {
+    _CaptureFinish = complete;
+    
     sessionThread(^{
         if (!_sessionRunning) return;
         
         if (_setupResult == AVCamSetupResultSuccess ) {
             [_session stopRunning];
-            _sessionRunning = [_session isRunning];
-            
-//            [self stopRecording:complete];
-            [self stopAssertWriter:complete];
+
+            if (_type == AVOutputTypeAssertWriter) {
+                [self stopAssertWriter];
+            }
             
             NSLog(@"capture stop");
         }
@@ -434,27 +459,29 @@ void sessionThread(dispatch_block_t block) {
     [_movieDataOutput startRecordingToOutputFileURL:outputURL recordingDelegate:self];
 }
 
-- (void) stopRecording:(void(^)(void)) complete {
-    mainThread(^{
-        if (complete) complete();
-    });
-}
-
 #pragma mark - AssertWriter
 - (void) startAssertWirter {
     [self addAssertWriter];
     
     if (_asserWriter && _asserWriter.status != AVAssetWriterStatusWriting) {
         [_asserWriter startWriting];
-        [_asserWriter startSessionAtSourceTime:_lastSampleTime];
     }
 }
 
-- (void) stopAssertWriter:(void(^)(void)) complete {
+- (void) startSessionAtSourceTime {
+    if (_asserWriter.status == AVAssetWriterStatusWriting) {
+        [_asserWriter startSessionAtSourceTime:_lastSampleTime];
+        _isStartSession = YES;
+    }
+}
+
+- (void) stopAssertWriter {
     if (_asserWriter.status == AVAssetWriterStatusWriting) {
         [_asserWriter finishWritingWithCompletionHandler:^{
+            _sessionRunning = NO;
+            
             mainThread(^{
-                if (complete) complete();
+                if (_CaptureFinish) _CaptureFinish();
             });
             
             _asserWriter = nil;
@@ -478,22 +505,37 @@ void sessionThread(dispatch_block_t block) {
         if (value)
             recordedSuccessfully = [value boolValue];
     }
+    
+    if (!recordedSuccessfully)
+        return;
+    
+    mainThread(^{
+        _sessionRunning = NO;
+        
+        if (_CaptureFinish) _CaptureFinish();
+    });
 }
 
 #pragma mark - AVCaptureFileOutputDelegate Delegate
 - (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-    NSLog(@"%@ %@", NSStringFromSelector(_cmd), NSStringFromClass([captureOutput class]));
-
-//    if (captureOutput == _audioDataOutput) {
-//        
-//    } else {
+//    NSLog(@"%@ %@", NSStringFromSelector(_cmd), NSStringFromClass([captureOutput class]));
+//
+//    if (captureOutput == _videoDataOutput) {
 //        UIImage *image = [self imageFromSampleBuffer:sampleBuffer];
-//        NSLog(@"%@", NSStringFromCGSize(image.size));
 //    }
     
+    if (_orignalCaptureSecond == 0)
+        _orignalCaptureSecond = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer));
+    
+    _lastSampleTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+    _currentCaptureSecond = CMTimeGetSeconds(_lastSampleTime) - _orignalCaptureSecond;
+    
+    if (!_isStartSession) {
+        [self startSessionAtSourceTime];
+        return;
+    }
+    
     @autoreleasepool {
-        _lastSampleTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
-        
         if (captureOutput == _videoDataOutput) {
             if (connection.isVideoOrientationSupported) {
                 connection.videoOrientation = _initialVideoOrientation;
@@ -509,11 +551,10 @@ void sessionThread(dispatch_block_t block) {
             }
             
             if (_videoWriterInput && [_videoWriterInput isReadyForMoreMediaData]) {
-                NSLog(@"Warning: writer status is %ld", (long)_asserWriter.status);
                 if (![_videoWriterInput appendSampleBuffer:sampleBuffer]) {
                     NSLog(@"unable to write video frame : %lld",_lastSampleTime.value);
                 } else {
-                    NSLog(@"recorded frame time %lld",_lastSampleTime.value / _lastSampleTime.timescale);
+                    NSLog(@"recorded video frame time %.2f", CMTimeGetSeconds(_lastSampleTime));
                 }
             }
         } else {
@@ -527,11 +568,10 @@ void sessionThread(dispatch_block_t block) {
             }
             
             if (_audioWriterInput && [_audioWriterInput isReadyForMoreMediaData]) {
-                NSLog(@"Warning: writer status is %ld", (long)_asserWriter.status);
                 if (![_audioWriterInput appendSampleBuffer:sampleBuffer]) {
                     NSLog(@"unable to write audio frame : %lld",_lastSampleTime.value);
                 } else {
-                    NSLog(@"recorded audio frame time %lld",_lastSampleTime.value / _lastSampleTime.timescale);
+                    NSLog(@"recorded audio frame time %.2f", CMTimeGetSeconds(_lastSampleTime));
                 }
             }
         }
